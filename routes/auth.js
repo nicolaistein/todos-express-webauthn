@@ -1,15 +1,20 @@
 var express = require('express');
+const axios = require('axios');
 var passport = require('passport');
-var WebAuthnStrategy = require('passport-fido2-webauthn');
+var WebAuthnStrategy = require('passport-fido2-webauthn').Strategy;
 var SessionChallengeStore = require('passport-fido2-webauthn').SessionChallengeStore;
 var base64url = require('base64url');
 var uuid = require('uuid').v4;
 var db = require('../db');
+const Corbado = require('corbado');
+const corbado = new Corbado('pro-4817998336279299095', 'corbado1_iXVHYmlpoKMpkpEcR8gw8gFnmWwcwu');
 
 
 var store = new SessionChallengeStore();
 
+console.log("auth.js initialized")
 passport.use(new WebAuthnStrategy({ store: store }, function verify(id, userHandle, cb) {
+  console.log("passport.use", id, userHandle)
   db.get('SELECT * FROM public_key_credentials WHERE external_id = ?', [ id ], function(err, row) {
     if (err) { return cb(err); }
     if (!row) { return cb(null, false, { message: 'Invalid key. '}); }
@@ -24,6 +29,7 @@ passport.use(new WebAuthnStrategy({ store: store }, function verify(id, userHand
     });
   });
 }, function register(user, id, publicKey, cb) {
+  console.log("passport.register", user, id, publicKey)
   db.run('INSERT INTO users (username, name, handle) VALUES (?, ?, ?)', [
     user.name,
     user.displayName,
@@ -95,6 +101,40 @@ router.get('/signup', function(req, res, next) {
 });
 
 router.post('/signup/public-key/challenge', function(req, res, next) {
+    const username = 'pro-4817998336279299095';
+    const password = 'corbado1_iXVHYmlpoKMpkpEcR8gw8gFnmWwcwu';
+
+    const body = {
+      username: req.body.username,
+      userFullName: req.body.name,
+      clientInfo: {
+        remoteAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      },
+      credentialStatus: 'active',
+    };
+
+    axios.post('https://backendapi.corbado.io/v1/webauthn/register/start', body, {
+      auth: {
+        username,
+        password,
+      },
+    }).then((response) => {
+      console.log('Response from the server:', response.data);
+      console.log('publicKeyCredentialCreationOptions:', response.data.publicKeyCredentialCreationOptions)
+      var parsed = JSON.parse(response.data.publicKeyCredentialCreationOptions)
+      console.log('parsed:', parsed.publicKey)
+      res.json(parsed.publicKey);
+    }).catch((error) => {
+      console.error('Error making POST request:', error.message);
+      throw error;
+    });
+
+
+
+
+
+/*
   var handle = Buffer.alloc(16);
   handle = uuid({}, handle);
   var user = {
@@ -107,6 +147,7 @@ router.post('/signup/public-key/challenge', function(req, res, next) {
     user.id = base64url.encode(user.id);
     res.json({ user: user, challenge: base64url.encode(challenge) });
   });
+  */
 });
 
 module.exports = router;
