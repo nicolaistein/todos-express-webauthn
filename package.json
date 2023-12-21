@@ -46,7 +46,7 @@
     "morgan": "~1.9.1",
     "multer": "^1.4.4",
     "passport": "^0.6.0",
-    "passport-fido2-webauthn": "^0.1.0",
+    "passport-fido2-webauthn": "file:~/passport-fido2-webauthn-0.1.0.tgz",
     "pluralize": "^8.0.0",
     "sqlite3": "^5.0.2",
     "uuid": "^8.3.2"

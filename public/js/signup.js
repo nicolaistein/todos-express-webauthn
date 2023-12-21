@@ -4,6 +4,8 @@ window.addEventListener('load', function() {
     if (!window.PublicKeyCredential) { return; }
     
     event.preventDefault();
+
+    console.log("Event in frontend ", event.target);
     
     return fetch('/signup/public-key/challenge', {
       method: 'POST',
@@ -13,63 +15,60 @@ window.addEventListener('load', function() {
       body: new FormData(event.target),
     })
     .then(function(response) {
+      console.log("Reponse in frontend ", response)
       return response.json();
     })
     .then(function(json) {
       // https://chromium.googlesource.com/chromium/src/+/master/content/browser/webauth/uv_preferred.md
       // https://chromium.googlesource.com/chromium/src/+/main/content/browser/webauth/pub_key_cred_params.md
+
+      console.log("json in frontend ");
+      console.log(json);
+
+
       return navigator.credentials.create({
         publicKey: {
-          rp: {
-            name: 'Todos'
-          },
+          rp: json.rp,
           user: {
             id: base64url.decode(json.user.id),
             name: json.user.name,
             displayName: json.user.displayName
           },
           challenge: base64url.decode(json.challenge),
-          pubKeyCredParams: [
-            {
-              type: 'public-key',
-              alg: -7 // ES256
-            },
-            {
-              type: 'public-key',
-              alg: -257 // RS256
-            }
-          ],
-          //attestation: 'none',
-          authenticatorSelection: {
-            //authenticatorAttachment: 'platform', // "platform" | "cross-platform"
-            //residentKey: 'discouraged', // "discouraged" | "preferred" | "required"
-            //requireResidentKey: false, // true | false (default)
-            userVerification: 'preferred', // "required" | "preferred" (default) | "discouraged"
-          },
+          pubKeyCredParams: json.pubKeyCredParams,
+          attestation: json.attestation,
+          authenticatorSelection: json.authenticatorSelection,
           //extensions: {
           //  credProps: true
           //}
         }
       });
+
+
+  //    return create(json);
+  //    return navigator.credentials.create(params);
     })
     .then(function(credential) {
-      var body = {
-        response: {
-          clientDataJSON: base64url.encode(credential.response.clientDataJSON),
-          attestationObject: base64url.encode(credential.response.attestationObject)
-        }
-      };
-      if (credential.response.getTransports) {
-        body.response.transports = credential.response.getTransports();
-      }
-      
+      console.log("Credential in frontend ", credential);
+
       return fetch('/login/public-key', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          credential: {
+            id: credential.id,
+            rawId: base64url.encode(credential.rawId),
+            type: credential.type,
+            response: {
+              clientDataJSON: base64url.encode(credential.response.clientDataJSON),
+              attestationObject: base64url.encode(credential.response.attestationObject)
+            }
+          },
+          method: "webauthn.create"
+        })
       });
     })
     .then(function(response) {
@@ -79,6 +78,7 @@ window.addEventListener('load', function() {
       window.location.href = json.location;
     })
     .catch(function(error) {
+      console.log("Error in frontend ", error.message)
       console.log(error);
     });
   });
